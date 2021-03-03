@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
 extern int errno;
+
+int debug = true;
 
 int recursion_call;
 
@@ -18,6 +19,10 @@ typedef struct {
     int successorCount;
 } SUCCESSORS;
 
+typedef struct {
+    char *result;
+    int score;
+} RESULT;
 
 void swap(int *xp, int *yp) {
     int temp = *xp;
@@ -85,33 +90,42 @@ SUCCESSORS nextBishop(char *chessboard, int chessboardSize, POSITION position) {
     int *next = (int *) malloc(sizeof(int) * 2 * chessboardSize - 2);
 
     int successorsCount = 0;
+    bool isDiagAFree = true;
+    bool isDiagBFree = true;
+    bool isDiagCFree = true;
+    bool isDiagDFree = true;
+
     for (int i = 0; i < chessboardSize; i++) {
-        if (position.rowIndex + i < chessboardSize && position.colIndex + i < chessboardSize) {
+        if (position.rowIndex + i < chessboardSize && position.colIndex + i < chessboardSize && isDiagAFree) {
             int index = mapIndex(position.rowIndex + i, position.colIndex + i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagAFree = false;
             if (canMove(chessboard[index])) {
                 next[successorsCount] = index;
                 successorsCount++;
             }
         }
 
-        if (position.rowIndex - i >= 0 && position.colIndex - i >= 0) {
+        if (position.rowIndex - i >= 0 && position.colIndex - i >= 0 && isDiagBFree) {
             int index = mapIndex(position.rowIndex - i, position.colIndex - i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagBFree = false;
             if (canMove(chessboard[index])) {
                 next[successorsCount] = index;
                 successorsCount++;
             }
         }
 
-        if (position.rowIndex + i < chessboardSize && position.colIndex - i >= 0) {
+        if (position.rowIndex + i < chessboardSize && position.colIndex - i >= 0 && isDiagCFree) {
             int index = mapIndex(position.rowIndex + i, position.colIndex - i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagCFree = false;
             if (canMove(chessboard[index])) {
                 next[successorsCount] = index;
                 successorsCount++;
             }
         }
 
-        if (position.rowIndex - i >= 0 && position.colIndex + i < chessboardSize) {
+        if (position.rowIndex - i >= 0 && position.colIndex + i < chessboardSize && isDiagDFree) {
             int index = mapIndex(position.rowIndex - i, position.colIndex + i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagDFree = false;
             if (canMove(chessboard[index])) {
                 next[successorsCount] = index;
                 successorsCount++;
@@ -230,56 +244,79 @@ int move(char *chessboard, int chessboardSize, POSITION *startPosition, int move
     return taken;
 }
 
-// Začíná střelec
+// Začíná střelec, CHYBA VE STŘÍDÁNÍ JEZDCE A STŘELCE
 // TODO: Implement Branch&Bound
-void chessboardSearch(char chessboard[], POSITION knightPos, POSITION bishopPos, int pieceCount,
-                      int discardedPieceCount, int maxDepth, int depth, int bestDepth, char pieceMove) {
+int chessboardSearch(char chessboard[], int chessboardSize, POSITION knightPos, POSITION bishopPos, int pieceCount,
+                     int discardedPieceCount, int maxDepth, int depth, int bestDepth, char pieceMove) {
 
     recursion_call++;
-    printf("Recursion call number: %d\n", recursion_call);
-
-    if (pieceCount == discardedPieceCount && depth < maxDepth) {
-        maxDepth = depth;
-    }
+    if (debug) printf("Recursion call number: %d\n", recursion_call);
 
     // lower bound
     if (depth == pieceCount && pieceCount == discardedPieceCount)
-        return;
+        return bestDepth;
 
     // upper bound
     if (depth > maxDepth)
-        return;
+        return depth;
 
-//    if (depth + (pieceCount - discardedPieceCount) < bestDepth)
-//        return;
+    if (pieceCount == discardedPieceCount && depth < maxDepth)
+        maxDepth = depth;
 
-    printf("%d pieces discarded in %d turns\n", discardedPieceCount, depth);
+    if (depth < bestDepth && pieceCount == discardedPieceCount)
+        bestDepth = depth;
+
+    if (depth + (pieceCount - discardedPieceCount) >= bestDepth)
+        return bestDepth;
+
+//    if (debug) printf("%d pieces discarded in %d turns\n", discardedPieceCount, depth);
 
     POSITION *movePosition = pieceMove == 'S' ? &bishopPos : &knightPos;
-    SUCCESSORS successors = next(chessboard, 5, *movePosition);
-    //TADY CHYBA! Nejspíš uniká paměť
-    if (successors.successorCount > 150) {
-        printf('err');
-    }
+    SUCCESSORS successors = next(chessboard, chessboardSize, *movePosition);
 
     char nextMove = pieceMove == 'S' ? 'J' : 'S';
-    successors = val(chessboard, 5, successors, pieceMove);
-    printSuccessors(successors, pieceMove);
+    successors = val(chessboard, chessboardSize, successors, pieceMove);
+
+    if (debug) printSuccessors(successors, pieceMove);
+
+    char *chessboardCopy = (char *) malloc(sizeof(char) * chessboardSize * chessboardSize);
+    strcpy(chessboardCopy, chessboard);
 
     for (int i = 0; i < successors.successorCount; i++) {
-        char *chessboardCopy = (char *) malloc(sizeof(char) * 25);
-        strcpy(chessboardCopy, chessboard);
+        //char *chessboardCopy = (char *) malloc(sizeof(char) * 25);
+        //strcpy(chessboardCopy, chessboard);
 
-        discardedPieceCount += move(chessboardCopy, 5, movePosition, successors.successors[i]);
-        printChessboard(chessboardCopy, 5, 25);
+        if(debug) {
+            printf("Before %d move '%c' to successor %d. Discarded piece: %d\n", depth + 1, pieceMove, successors.successors[i], discardedPieceCount);
+            printf("Position of '%c' [%d, %d]\n", pieceMove, movePosition->rowIndex, movePosition->colIndex);
+            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
+        }
 
+        discardedPieceCount += move(chessboardCopy, chessboardSize, movePosition, successors.successors[i]);
         depth++;
-        chessboardSearch(chessboardCopy, knightPos, bishopPos, pieceCount, discardedPieceCount, maxDepth, depth,
-                         bestDepth, nextMove);
 
-        free(chessboardCopy);
+        if (debug) {
+            printf("%d move '%c' to successor %d. Discarded piece: %d\n", depth, pieceMove, successors.successors[i], discardedPieceCount);
+            printf("Position of '%c' [%d, %d]\n", pieceMove, movePosition->rowIndex, movePosition->colIndex);
+            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
+        }
+
+        int depthRec = chessboardSearch(chessboardCopy, chessboardSize, knightPos, bishopPos, pieceCount,
+                                        discardedPieceCount, maxDepth,
+                                        depth, bestDepth, nextMove);
+        if (bestDepth > depthRec)
+            bestDepth = depthRec;
+
+        //free(chessboardCopy);
         //free(successors.successors);
     }
+    free(chessboardCopy);
+
+    if (debug)
+        printf("Best score is %d\n", bestDepth);
+
+    return bestDepth;
+
     //free(successors.successors);
 
     // UPDATE POSITION AFTER MOVE
@@ -306,24 +343,39 @@ int main(int argc, char *argv[]) {
     char *chessBoard;
     int oneDimensionSize = chessboard_size * chessboard_size;
     chessBoard = (char *) malloc(sizeof(char) * oneDimensionSize);
+
     printf("Chessboard size is: %d\n", strlen(chessBoard));
+
+    POSITION knightPosition;
+    POSITION bishopPosition;
+    int chessPiece = 0;
 
     for (int i = chessboardStartArg; i < argc; i++) {
         int size = strlen(argv[i]);
         for (int j = 0; j < size; j++) {
             int index = mapIndex(i - chessboardStartArg, j, chessboard_size);
             chessBoard[index] = argv[i][j];
+            if (chessBoard[index] == 'J') {
+                knightPosition.rowIndex = i - chessboardStartArg;
+                knightPosition.colIndex = j;
+            }
+            if (chessBoard[index] == 'S') {
+                bishopPosition.rowIndex = i - chessboardStartArg;
+                bishopPosition.colIndex = j;
+            }
+            if (chessBoard[index] == 'P')
+                chessPiece++;
         }
     }
 
     // Test knight successors
-    POSITION knightPosition;
-    knightPosition.rowIndex = 0;
-    knightPosition.colIndex = 0;
+//    POSITION knightPosition;
+//    knightPosition.rowIndex = 0;
+//    knightPosition.colIndex = 0;
 
-    POSITION bishopPosition;
-    bishopPosition.rowIndex = 1;
-    bishopPosition.colIndex = 1;
+    //POSITION bishopPosition;
+//    bishopPosition.rowIndex = 1;
+//    bishopPosition.colIndex = 1;
 
 //    printChessboard(chessBoard, chessboard_size, oneDimensionSize);
 //
@@ -332,7 +384,11 @@ int main(int argc, char *argv[]) {
 //
 //    next = val(chessBoard, next, 'S');
 
-    chessboardSearch(chessBoard, knightPosition, bishopPosition, 3, 0, max_depth, 0, 0, 'S');
+    printChessboard(chessBoard, chessboard_size, chessboard_size * chessboard_size);
+    int result = chessboardSearch(chessBoard, chessboard_size, knightPosition, bishopPosition, chessPiece, 0, max_depth,
+                                  0,
+                                  max_depth, 'S');
+    printf("Best score is %d\n", result);
     free(chessBoard);
 
     return 0;

@@ -4,10 +4,8 @@
 #include <stdbool.h>
 #include <time.h>
 
-//int debug = false;
-
+int debug = false;
 unsigned long recursionCall = 0;
-
 int bestDepth;
 
 typedef struct {
@@ -15,10 +13,16 @@ typedef struct {
     int colIndex;
 } POSITION;
 
-void swap(int *xp, int *yp) {
-    int temp = *xp;
-    *xp = *yp;
-    *yp = temp;
+void copyIntArray(int *source, int *target, int size) {
+    for (int i = 0; i < size; i++) {
+        target[i] = source[i];
+    }
+}
+
+void copyArray(char *source, char *target, int size) {
+    for (int i = 0; i < size; i++) {
+        target[i] = source[i];
+    }
 }
 
 void printSuccessors(int *successors, int size, char figureMove) {
@@ -31,11 +35,23 @@ void printSuccessors(int *successors, int size, char figureMove) {
     printf("\n");
 }
 
+void printChessboard(char *chessboard, int chessboardSize, int oneDimensionLength) {
+    printf("\n");
+    for (int i = 0; i < oneDimensionLength; i++) {
+        printf("%c", chessboard[i]);
+        if ((i + 1) % chessboardSize == 0)
+            printf("\n");
+    }
+    printf("\n");
+}
+
+void swap(int *xp, int *yp) {
+    int temp = *xp;
+    *xp = *yp;
+    *yp = temp;
+}
+
 void bubbleSort(int *scores, int *successors, int n) {
-    //printSuccessors(scores, n, 'S');
-    //printSuccessors(successors, n, 'S');
-    //printSuccessors(scores, n, 'S');
-    //printSuccessors(successors, n, 'S');
     int i, j;
     for (i = 0; i < n - 1; i++) {
         for (j = 0; j < n - i - 1; j++) {
@@ -45,19 +61,6 @@ void bubbleSort(int *scores, int *successors, int n) {
             }
         }
     }
-
-    //printSuccessors(scores, n, 'S');
-    //printSuccessors(successors, n, 'S');
-}
-
-void printChessboard(char *chessboard, int chessboardSize, int oneDimensionLength) {
-    printf("\n");
-    for (int i = 0; i < oneDimensionLength; i++) {
-        printf("%c", chessboard[i]);
-        if ((i + 1) % chessboardSize == 0)
-            printf("\n");
-    }
-    printf("\n");
 }
 
 int mapIndex(int i, int j, int chessboardSize) {
@@ -72,104 +75,11 @@ POSITION mapIndexInverse(int index, int chessboardSize) {
     return position;
 }
 
-bool canMove(char figurine) {
-    return figurine != 'J' && figurine != 'S';
-}
-
 bool isPositionValid(int rowIndex, int colIndex, int chessboardSize) {
     return rowIndex < chessboardSize
            && rowIndex >= 0
            && colIndex < chessboardSize
            && colIndex >= 0;
-}
-
-// Množina následovníků střelce
-int nextBishop(char *chessboard, int chessboardSize, int *successors, POSITION position) {
-    int successorsCount = 0;
-
-    bool isDiagAFree = true;
-    bool isDiagBFree = true;
-    bool isDiagCFree = true;
-    bool isDiagDFree = true;
-
-    for (int i = 0; i < chessboardSize; i++) {
-        if (isPositionValid(position.rowIndex + i, position.colIndex + i, chessboardSize) && isDiagAFree) {
-            int index = mapIndex(position.rowIndex + i, position.colIndex + i, chessboardSize);
-            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagAFree = false;
-            if (canMove(chessboard[index])) {
-                successors[successorsCount] = index;
-                successorsCount++;
-            }
-        }
-
-        if (isPositionValid(position.rowIndex - i, position.colIndex - i, chessboardSize) && isDiagBFree) {
-            int index = mapIndex(position.rowIndex - i, position.colIndex - i, chessboardSize);
-            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagBFree = false;
-            if (canMove(chessboard[index])) {
-                successors[successorsCount] = index;
-                successorsCount++;
-            }
-        }
-
-        if (isPositionValid(position.rowIndex + i, position.colIndex - i, chessboardSize) && isDiagCFree) {
-            int index = mapIndex(position.rowIndex + i, position.colIndex - i, chessboardSize);
-            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagCFree = false;
-            if (canMove(chessboard[index])) {
-                successors[successorsCount] = index;
-                successorsCount++;
-            }
-        }
-
-        if (isPositionValid(position.rowIndex - i, position.colIndex + i, chessboardSize) && isDiagDFree) {
-            int index = mapIndex(position.rowIndex - i, position.colIndex + i, chessboardSize);
-            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagDFree = false;
-            if (canMove(chessboard[index])) {
-                successors[successorsCount] = index;
-                successorsCount++;
-            }
-        }
-    }
-
-    return successorsCount;
-}
-
-// Množina následovníků jezdce
-int nextKnight(char *chessboard, int chessboardSize, int *successors, POSITION position) {
-    int moves[4] = {-1, -2, 1, 2};
-    int movesSize = sizeof(moves) / sizeof(moves[0]);
-
-    int successorsCount = 0;
-    for (int i = 0; i < movesSize; i++) {
-        for (int j = 0; j < movesSize; j++) {
-            if (moves[i] + moves[j] == 0 || moves[i] == moves[j])
-                continue;
-
-            if (!isPositionValid(position.rowIndex + moves[i], position.colIndex + moves[j], chessboardSize))
-                continue;
-
-            int index = mapIndex(position.rowIndex + moves[i], position.colIndex + moves[j], chessboardSize);
-            if (canMove(chessboard[index])) {
-                successors[successorsCount] = index;
-                successorsCount++;
-            }
-        }
-    }
-
-    return successorsCount;
-}
-
-// Vrátí množinu následovníků na které se může střelec/kůň posunout
-//TODO: Ošetřit nevalidní nextMove
-int next(char chessboard[], int chessboardSize, int *successors, POSITION position) {
-    int index = mapIndex(position.rowIndex, position.colIndex, chessboardSize);
-    if (chessboard[index] == 'J') {
-        return nextKnight(chessboard, chessboardSize, successors, position);
-    } else if (chessboard[index] == 'S') {
-        return nextBishop(chessboard, chessboardSize, successors, position);
-    } else {
-        printf("Invalid position for J/S.\n");
-        return 0;
-    }
 }
 
 int calculateScore(char *chessboard, int chessboardSize, int successor, char movingFigure) {
@@ -224,7 +134,6 @@ void val(char *chessboard, int chessboardSize, int *successors, int successorsSi
     free(score);
 }
 
-// Pohyb figurky po šachovnici. Updatuje šachovnici a vrátí počet aktuální počet figurek na šachovnici
 int move(char *chessboard, int chessboardSize, POSITION startPosition, int moveIndex) {
     int taken = 0;
     if (chessboard[moveIndex] == 'P') taken++;
@@ -238,17 +147,14 @@ int move(char *chessboard, int chessboardSize, POSITION startPosition, int moveI
     return taken;
 }
 
-//TODO: Negative/POSITIVE ZERO COULD BE PROBLEM
 void printMovesDebug(int *moves, int movesCount, int chessboardSize, POSITION knightPos, POSITION bishopPos) {
     char startFigure;
     for (int i = 0; i < movesCount; i++) {
         startFigure = i % 2 == 0 ? 'S' : 'J';
         if (i == 0 && moves[i] > 0) {
-            POSITION position = mapIndexInverse(moves[i], chessboardSize);
             int bishopIndex = mapIndex(bishopPos.rowIndex, bishopPos.colIndex, chessboardSize);
             printf("%d. %c: %d -> %d*\n", i, startFigure, bishopIndex, moves[i]);
         } else if (i == 0 && moves[i] <= 0) {
-            //POSITION position = mapIndexInverse(moves[i] * -1, chessboardSize);
             int bishopIndex = mapIndex(bishopPos.rowIndex, bishopPos.colIndex, chessboardSize);
             printf("%d. %c: %d -> %d\n", i, startFigure, bishopIndex, moves[i] * -1);
         }
@@ -262,11 +168,8 @@ void printMovesDebug(int *moves, int movesCount, int chessboardSize, POSITION kn
         }
 
         if (i > 1 && moves[i] > 0) {
-            //POSITION position = mapIndexInverse(moves[i], chessboardSize);
-            //POSITION positionBefore;
             int indexBefore;
             if (moves[i - 2] >= 0) {
-                //positionBefore = mapIndexInverse(moves[i - 2], chessboardSize);
                 indexBefore = moves[i - 2];
             } else {
                 indexBefore = moves[i - 2] * -1;
@@ -284,7 +187,6 @@ void printMovesDebug(int *moves, int movesCount, int chessboardSize, POSITION kn
     }
 }
 
-//TODO: Negative/POSITIVE ZERO COULD BE PROBLEM
 void printMoves(int *moves, int movesCount, int chessboardSize, POSITION knightPos, POSITION bishopPos) {
     char startFigure;
     for (int i = 0; i < movesCount; i++) {
@@ -339,98 +241,158 @@ void printMoves(int *moves, int movesCount, int chessboardSize, POSITION knightP
     }
 }
 
-void copyIntArray(int *source, int *target, int size) {
-    for (int i = 0; i < size; i++) {
-        target[i] = source[i];
+bool canMove(char figurine) {
+    return figurine != 'J' && figurine != 'S';
+}
+
+// get next moves for a bishop
+int nextBishop(char *chessboard, int chessboardSize, int *successors, POSITION position) {
+    int nextMoveCount = 0;
+
+    bool isDiagAFree = true;
+    bool isDiagBFree = true;
+    bool isDiagCFree = true;
+    bool isDiagDFree = true;
+
+    for (int i = 0; i < chessboardSize; i++) {
+        if (isPositionValid(position.rowIndex + i, position.colIndex + i, chessboardSize) && isDiagAFree) {
+            int index = mapIndex(position.rowIndex + i, position.colIndex + i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagAFree = false;
+            if (canMove(chessboard[index])) {
+                successors[nextMoveCount] = index;
+                nextMoveCount++;
+            }
+        }
+
+        if (isPositionValid(position.rowIndex - i, position.colIndex - i, chessboardSize) && isDiagBFree) {
+            int index = mapIndex(position.rowIndex - i, position.colIndex - i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagBFree = false;
+            if (canMove(chessboard[index])) {
+                successors[nextMoveCount] = index;
+                nextMoveCount++;
+            }
+        }
+
+        if (isPositionValid(position.rowIndex + i, position.colIndex - i, chessboardSize) && isDiagCFree) {
+            int index = mapIndex(position.rowIndex + i, position.colIndex - i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagCFree = false;
+            if (canMove(chessboard[index])) {
+                successors[nextMoveCount] = index;
+                nextMoveCount++;
+            }
+        }
+
+        if (isPositionValid(position.rowIndex - i, position.colIndex + i, chessboardSize) && isDiagDFree) {
+            int index = mapIndex(position.rowIndex - i, position.colIndex + i, chessboardSize);
+            if (chessboard[index] == 'P' || chessboard[index] == 'J') isDiagDFree = false;
+            if (canMove(chessboard[index])) {
+                successors[nextMoveCount] = index;
+                nextMoveCount++;
+            }
+        }
+    }
+
+    return nextMoveCount;
+}
+
+// get next moves for a knight
+int nextKnight(char *chessboard, int chessboardSize, int *successors, POSITION position) {
+    int moves[4] = {-1, -2, 1, 2};
+    int movesSize = sizeof(moves) / sizeof(moves[0]);
+
+    int nextMoveCount = 0;
+    for (int i = 0; i < movesSize; i++) {
+        for (int j = 0; j < movesSize; j++) {
+            if (moves[i] + moves[j] == 0 || moves[i] == moves[j])
+                continue;
+
+            if (!isPositionValid(position.rowIndex + moves[i], position.colIndex + moves[j], chessboardSize))
+                continue;
+
+            int index = mapIndex(position.rowIndex + moves[i], position.colIndex + moves[j], chessboardSize);
+            if (canMove(chessboard[index])) {
+                successors[nextMoveCount] = index;
+                nextMoveCount++;
+            }
+        }
+    }
+
+    return nextMoveCount;
+}
+
+// get next moves for a knight or a bishop depends on position
+int next(char *chessboard, int chessboardSize, int *successors, POSITION position) {
+    int index = mapIndex(position.rowIndex, position.colIndex, chessboardSize);
+    if (chessboard[index] == 'J') {
+        return nextKnight(chessboard, chessboardSize, successors, position);
+    } else if (chessboard[index] == 'S') {
+        return nextBishop(chessboard, chessboardSize, successors, position);
+    } else {
+        printf("Invalid position for J/S.\n");
+        return -1;
     }
 }
 
 
-void copyArray(char *source, char *target, int size) {
-    for (int i = 0; i < size; i++) {
-        target[i] = source[i];
-    }
-}
-
-bool isConfig(int *moves) {
-    return moves[0] ==
-           50 && moves[1] == 28 && moves[2] == 26 && moves[3] == 41 && moves[4] == 36 && moves[5] == 18;
-    //&& moves[6] == 48 && moves[7] == 31 && moves[8] == 58 && moves[9] == 40 && moves[10] == 22;
-}
-
-//TODO: Instance 10, 12 does not get optimal result
-void
-dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMoves, POSITION knightPos, POSITION bishopPos,
-              int boardFigures, int takeFiguresCount, int depth, char figureMove) {
-    bool debug = false;
+void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMoves, POSITION knightPos,
+                   POSITION bishopPos, int boardFigures, int takeFiguresCount, int depth, char figureMove) {
     recursionCall++;
 
-    //if(moves[0] == -50 && moves[8] == 58 && moves[9] == 40)
-
     // lower bound
-    if (bestDepth == boardFigures) {
+    if (depth == boardFigures && boardFigures == takeFiguresCount) {
+        bestDepth = depth;
+        copyIntArray(moves, bestMoves, bestDepth);
         return;
     }
 
-    // upper bound
-    if (depth > bestDepth) {
+    // upper bound (init best depth is max depth)
+    if (depth >= bestDepth) {
         return;
     }
 
+    // update best depth
     if (boardFigures == takeFiguresCount && depth < bestDepth) {
         bestDepth = depth;
         copyIntArray(moves, bestMoves, bestDepth);
         return;
     }
 
-    if (boardFigures == takeFiguresCount) {
-        return;
-    }
-
+    // Branch and bound
     if (depth + (boardFigures - takeFiguresCount) >= bestDepth) {
         return;
     }
 
-    POSITION nextFigureMove;
+    POSITION moveStartPosition;
     char nextMove;
     int *successors;
     if (figureMove == 'S') {
         nextMove = 'J';
-        nextFigureMove = bishopPos;
+        moveStartPosition = bishopPos;
         successors = (int *) malloc(sizeof(int) * (2 * chessboardSize - 2));
     } else {
         nextMove = 'S';
-        nextFigureMove = knightPos;
+        moveStartPosition = knightPos;
         successors = (int *) malloc(sizeof(int) * 8);
     }
 
-    int successorSize = next(chessboard, chessboardSize, successors, nextFigureMove);
-
-    //TODO: Fix val function
+    // get all possible moves
+    int successorSize = next(chessboard, chessboardSize, successors, moveStartPosition);
     val(chessboard, chessboardSize, successors, successorSize, figureMove);
 
     for (int i = 0; i < successorSize; i++) {
+        // copy chessboard
         char *chessboardCopy = (char *) malloc(sizeof(char) * chessboardSize * chessboardSize);
         copyArray(chessboard, chessboardCopy, chessboardSize * chessboardSize);
 
-        if (depth == 0) {
-            printf("Next successor %d\n", successors[i]);
-        }
-
-        int index = successors[i];
         POSITION startPosition = figureMove == 'S' ? bishopPos : knightPos;
 
-        if (debug) {
-            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
-            printSuccessors(successors, successorSize, figureMove);
+//        if (debug) {
+//            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
+//            printSuccessors(successors, successorSize, figureMove);
 //            printf("Before %d move '%c' to successor %d. Discarded piece: %d\n", depth, figureMove,
 //                   successors[i], takeFiguresCount);
 //            printf("Position of '%c' [%d, %d]\n", figureMove, startPosition.rowIndex, startPosition.colIndex);
 //            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
-        }
-
-//        if (isConfig(moves)) {
-//            printSuccessors(successors, successorSize, figureMove);
 //        }
 
         int capturedFigure = move(chessboardCopy, chessboardSize, startPosition, successors[i]);
@@ -440,8 +402,10 @@ dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMoves, 
             moves[depth] = successors[i];
         } else {
             printf("More than 1 figure has been thrown.");
+            return;
         }
 
+        // update position after move
         POSITION nextBishopPos = bishopPos;
         POSITION nextKnightPos = knightPos;
         if (figureMove == 'S') {
@@ -450,12 +414,12 @@ dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMoves, 
             nextKnightPos = mapIndexInverse(successors[i], chessboardSize);
         }
 
-        if (debug) {
-            printf("%d move '%c' to successor %d. Discarded piece: %d\n", depth, figureMove, successors[i],
-                   takeFiguresCount);
-            printf("Position of '%c' [%d, %d]\n", figureMove, startPosition.rowIndex, startPosition.colIndex);
-            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
-        }
+//        if (debug) {
+//            printf("%d move '%c' to successor %d. Discarded piece: %d\n", depth, figureMove, successors[i],
+//                   takeFiguresCount);
+//            printf("Position of '%c' [%d, %d]\n", figureMove, startPosition.rowIndex, startPosition.colIndex);
+//            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
+//        }
 
         dfsChessboard(chessboardCopy, chessboardSize, moves, bestMoves, nextKnightPos, nextBishopPos, boardFigures,
                       takeFiguresCount + capturedFigure, depth + 1, nextMove);
@@ -468,9 +432,7 @@ dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMoves, 
 int main(int argc, char *argv[]) {
     setbuf(stdout, 0);
 
-
     int chessboardStartArg = 3;
-
     char *p_chessboardSize;
     p_chessboardSize = *(argv + 1);
 
@@ -481,7 +443,7 @@ int main(int argc, char *argv[]) {
     int maxDepth = atoi(p_maxDepth);
 
     printf("Chessboard size is: %d\n", chessboardSize);
-    printf("MaxDepth size is: %d\n", maxDepth);
+    printf("Max depth is: %d\n", maxDepth);
 
     int oneDimensionSize = chessboardSize * chessboardSize;
     char *chessBoard = (char *) malloc(sizeof(char) * oneDimensionSize);
@@ -492,7 +454,7 @@ int main(int argc, char *argv[]) {
     POSITION bishopPosition;
     int boardFigures = 0;
 
-    // Parse instance
+    // Parse instance from CMD
     for (int i = chessboardStartArg; i < argc; i++) {
         int size = strlen(argv[i]);
         for (int j = 0; j < size; j++) {
@@ -516,18 +478,17 @@ int main(int argc, char *argv[]) {
     bestDepth = maxDepth;
 
     clock_t start = clock();
-    dfsChessboard(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures, 0, 0,
-                  'S');
-    printMovesDebug(bestMoves, bestDepth, chessboardSize, knightPosition, bishopPosition);
-    //printSuccessors(bestMoves, bestDepth, 'S');
+    dfsChessboard(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures,
+                  0, 0, 'S');
+    printMoves(bestMoves, bestDepth, chessboardSize, knightPosition, bishopPosition);
 
     free(chessBoard);
     free(moves);
     free(bestMoves);
+
     clock_t end = clock();
 
     float seconds = (float) (end - start) / CLOCKS_PER_SEC;
-
     printf("Best score is %d. The program finished after %.6f seconds and recursion calls %d.\n", bestDepth, seconds,
            recursionCall);
 

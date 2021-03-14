@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <omp.h>
 
 int debug = false;
 unsigned long recursionCall = 0;
@@ -324,7 +325,7 @@ int next(char *chessboard, int chessboardSize, int *successors, POSITION positio
     } else if (chessboard[index] == 'S') {
         return nextBishop(chessboard, chessboardSize, successors, position);
     } else {
-        printf("Invalid position for J/S.\n");
+        printf("Invalid position '%c' for J/S.\n", chessboard[index]);
         return -1;
     }
 }
@@ -332,24 +333,40 @@ int next(char *chessboard, int chessboardSize, int *successors, POSITION positio
 
 void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMoves, POSITION knightPos,
                    POSITION bishopPos, int boardFigures, int takeFiguresCount, int depth, char figureMove) {
+    //int threads = omp_get_thread_num();
+    //printf("Threads %d\n", threads);
     recursionCall++;
 
     // lower bound
     if (depth == boardFigures && boardFigures == takeFiguresCount) {
-        bestDepth = depth;
-        copyIntArray(moves, bestMoves, bestDepth);
+#pragma omp critical
+        {
+            if (depth == boardFigures && boardFigures == takeFiguresCount) {
+                bestDepth = depth;
+                copyIntArray(moves, bestMoves, bestDepth);
+                //return;
+            }
+        }
         return;
     }
 
     // upper bound (init best depth is max depth)
     if (depth >= bestDepth) {
+//        int threads = omp_get_thread_num();
+//        printf("Threads %d\n", threads);
         return;
     }
 
     // update best depth
     if (boardFigures == takeFiguresCount && depth < bestDepth) {
-        bestDepth = depth;
-        copyIntArray(moves, bestMoves, bestDepth);
+#pragma omp critical
+        {
+            if (boardFigures == takeFiguresCount && depth < bestDepth) {
+                bestDepth = depth;
+                copyIntArray(moves, bestMoves, bestDepth);
+                //return;
+            }
+        }
         return;
     }
 
@@ -417,9 +434,14 @@ void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMo
 //            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
 //        }
 
-        dfsChessboard(chessboardCopy, chessboardSize, moves, bestMoves, nextKnightPos, nextBishopPos, boardFigures,
-                      takeFiguresCount + capturedFigure, depth + 1, nextMove);
-
+        int takeFigureCurr = takeFiguresCount + capturedFigure;
+        int currDepth = depth + 1;
+#pragma omp task //private(chessboardCopy, chessboardSize, moves, bestMoves, nextKnightPos, nextBishopPos, boardFigures, takeFigureCurr, currDepth, nextMove) shared(bestDepth)
+        {
+            dfsChessboard(chessboardCopy, chessboardSize, moves, bestMoves, nextKnightPos, nextBishopPos, boardFigures,
+                          takeFigureCurr, currDepth, nextMove);
+        }
+        #pragma omp taskwait
         free(chessboardCopy);
     }
     free(successors);
@@ -450,19 +472,23 @@ int main(int argc, char *argv[]) {
     POSITION bishopPosition;
     int boardFigures = 0;
 
-    // Parse instance from CMD
+// Parse instance from CMD
     for (int i = chessboardStartArg; i < argc; i++) {
         int size = strlen(argv[i]);
         for (int j = 0; j < size; j++) {
             int index = mapIndex(i - chessboardStartArg, j, chessboardSize);
             chessBoard[index] = argv[i][j];
             if (chessBoard[index] == 'J') {
-                knightPosition.rowIndex = i - chessboardStartArg;
-                knightPosition.colIndex = j;
+                knightPosition.
+                        rowIndex = i - chessboardStartArg;
+                knightPosition.
+                        colIndex = j;
             }
             if (chessBoard[index] == 'S') {
-                bishopPosition.rowIndex = i - chessboardStartArg;
-                bishopPosition.colIndex = j;
+                bishopPosition.
+                        rowIndex = i - chessboardStartArg;
+                bishopPosition.
+                        colIndex = j;
             }
             if (chessBoard[index] == 'P')
                 boardFigures++;
@@ -472,10 +498,20 @@ int main(int argc, char *argv[]) {
     printf("Board figures are: %d\n", boardFigures);
     printChessboard(chessBoard, chessboardSize, chessboardSize * chessboardSize);
     bestDepth = maxDepth;
+    int takeFiguresCount = 0;
+    int initialDepth = 0;
+    char startMove = 'S';
 
     clock_t start = clock();
-    dfsChessboard(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures,
-                  0, 0, 'S');
+#pragma omp parallel firstprivate(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures, takeFiguresCount, initialDepth, startMove) shared(bestDepth) num_threads(4)
+    {
+#pragma omp single
+        {
+            dfsChessboard(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures,
+                          takeFiguresCount, initialDepth, startMove);
+        }
+    }
+
     printMoves(bestMoves, bestDepth, chessboardSize, knightPosition, bishopPosition);
 
     free(chessBoard);
@@ -487,6 +523,7 @@ int main(int argc, char *argv[]) {
     float seconds = (float) (end - start) / CLOCKS_PER_SEC;
     printf("Best score is %d. The program finished after %.6f seconds and recursion calls %d.\n", bestDepth, seconds,
            recursionCall);
+
 
     return 0;
 }

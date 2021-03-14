@@ -187,56 +187,52 @@ void printMovesDebug(int *moves, int movesCount, int chessboardSize, POSITION kn
     }
 }
 
+void printFigureCapturedMove(int moveOrder, char figure, POSITION startPosition, POSITION endPosition) {
+    printf("%d. %c: [%d, %d] -> [%d, %d]*\n", moveOrder + 1, figure, startPosition.colIndex, startPosition.rowIndex,
+           endPosition.rowIndex, endPosition.colIndex);
+}
+
+void printFigureMove(int moveOrder, char figure, POSITION startPosition, POSITION endPosition) {
+    printf("%d. %c: [%d, %d] -> [%d, %d]\n", moveOrder + 1, figure, startPosition.colIndex, startPosition.rowIndex,
+           endPosition.rowIndex, endPosition.colIndex);
+}
+
 void printMoves(int *moves, int movesCount, int chessboardSize, POSITION knightPos, POSITION bishopPos) {
-    char startFigure;
+    char figure;
     for (int i = 0; i < movesCount; i++) {
-        startFigure = i % 2 == 0 ? 'S' : 'J';
+        figure = i % 2 == 0 ? 'S' : 'J';
+        POSITION startPosition;
+        if (moves[i] > 0) {
+            startPosition = mapIndexInverse(moves[i], chessboardSize);
+        } else {
+            startPosition = mapIndexInverse(moves[i] * -1, chessboardSize);
+        }
+
         if (i == 0 && moves[i] > 0) {
-            POSITION position = mapIndexInverse(moves[i], chessboardSize);
-            printf("%d. %c: [%d, %d] -> [%d, %d]*\n", i, startFigure, bishopPos.colIndex, bishopPos.rowIndex,
-                   position.rowIndex,
-                   position.colIndex);
+            printFigureCapturedMove(i, figure, bishopPos, startPosition);
         } else if (i == 0 && moves[i] <= 0) {
-            POSITION position = mapIndexInverse(moves[i] * -1, chessboardSize);
-            printf("%d. %c: [%d, %d] -> [%d, %d]\n", i, startFigure, bishopPos.colIndex, bishopPos.rowIndex,
-                   position.rowIndex,
-                   position.colIndex);
+            printFigureMove(i, figure, bishopPos, startPosition);
         }
 
         if (i == 1 && moves[i] > 0) {
-            POSITION position = mapIndexInverse(moves[i], chessboardSize);
-            printf("%d. %c: [%d, %d] -> [%d, %d]*\n", i, startFigure, knightPos.colIndex, knightPos.rowIndex,
-                   position.rowIndex,
-                   position.colIndex);
+            printFigureCapturedMove(i, figure, knightPos, startPosition);
         } else if (i == 1 && moves[i] <= 0) {
-            POSITION position = mapIndexInverse(moves[i] * -1, chessboardSize);
-            printf("%d. %c: [%d, %d] -> [%d, %d]\n", i, startFigure, knightPos.colIndex, knightPos.rowIndex,
-                   position.rowIndex,
-                   position.colIndex);
+            printFigureMove(i, figure, knightPos, startPosition);
         }
 
-        if (i > 1 && moves[i] > 0) {
-            POSITION position = mapIndexInverse(moves[i], chessboardSize);
-            POSITION positionBefore;
-            if (moves[i - 2] >= 0) {
-                positionBefore = mapIndexInverse(moves[i - 2], chessboardSize);
+        if (i > 1) {
+            POSITION endPosition;
+            if (moves[i - 2] > 0) {
+                endPosition = mapIndexInverse(moves[i - 2], chessboardSize);
             } else {
-                positionBefore = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
+                endPosition = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
             }
-            printf("%d. %c: [%d, %d] -> [%d, %d]*\n", i, startFigure, positionBefore.colIndex, positionBefore.rowIndex,
-                   position.rowIndex,
-                   position.colIndex);
-        } else if (i > 1 && moves[i] <= 0) {
-            POSITION position = mapIndexInverse(moves[i] * -1, chessboardSize);
-            POSITION positionBefore;
-            if (moves[i - 2] >= 0) {
-                positionBefore = mapIndexInverse(moves[i - 2], chessboardSize);
-            } else {
-                positionBefore = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
+
+            if (moves[i] > 0) {
+                printFigureCapturedMove(i, figure, startPosition, endPosition);
+            } else if (moves[i] <= 0) {
+                printFigureMove(i, figure, startPosition, endPosition);
             }
-            printf("%d. %c: [%d, %d] -> [%d, %d]\n", i, startFigure, positionBefore.colIndex, positionBefore.rowIndex,
-                   position.rowIndex,
-                   position.colIndex);
         }
     }
 }

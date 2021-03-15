@@ -8,6 +8,7 @@
 int debug = false;
 unsigned long recursionCall = 0;
 int bestDepth;
+int *bestMoves;
 
 typedef struct {
     int rowIndex;
@@ -331,7 +332,7 @@ int next(char *chessboard, int chessboardSize, int *successors, POSITION positio
 }
 
 
-void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMoves, POSITION knightPos,
+void dfsChessboard(char *chessboard, int chessboardSize, int *moves, POSITION knightPos,
                    POSITION bishopPos, int boardFigures, int takeFiguresCount, int depth, char figureMove) {
     //int threads = omp_get_thread_num();
     //printf("Threads %d\n", threads);
@@ -434,14 +435,14 @@ void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int *bestMo
 //            printChessboard(chessboardCopy, chessboardSize, chessboardSize * chessboardSize);
 //        }
 
-        int takeFigureCurr = takeFiguresCount + capturedFigure;
-        int currDepth = depth + 1;
-#pragma omp task //private(chessboardCopy, chessboardSize, moves, bestMoves, nextKnightPos, nextBishopPos, boardFigures, takeFigureCurr, currDepth, nextMove) shared(bestDepth)
+#pragma omp task firstprivate(chessboardCopy, chessboardSize, moves, boardFigures, nextMove)
         {
-            dfsChessboard(chessboardCopy, chessboardSize, moves, bestMoves, nextKnightPos, nextBishopPos, boardFigures,
+            int takeFigureCurr = takeFiguresCount + capturedFigure;
+            int currDepth = depth + 1;
+            dfsChessboard(chessboardCopy, chessboardSize, moves, nextKnightPos, nextBishopPos, boardFigures,
                           takeFigureCurr, currDepth, nextMove);
         }
-        #pragma omp taskwait
+#pragma omp taskwait
         free(chessboardCopy);
     }
     free(successors);
@@ -466,7 +467,6 @@ int main(int argc, char *argv[]) {
     int oneDimensionSize = chessboardSize * chessboardSize;
     char *chessBoard = (char *) malloc(sizeof(char) * oneDimensionSize);
     int *moves = (int *) malloc(sizeof(int) * maxDepth);
-    int *bestMoves = (int *) malloc(sizeof(int) * maxDepth);
 
     POSITION knightPosition;
     POSITION bishopPosition;
@@ -479,16 +479,12 @@ int main(int argc, char *argv[]) {
             int index = mapIndex(i - chessboardStartArg, j, chessboardSize);
             chessBoard[index] = argv[i][j];
             if (chessBoard[index] == 'J') {
-                knightPosition.
-                        rowIndex = i - chessboardStartArg;
-                knightPosition.
-                        colIndex = j;
+                knightPosition.rowIndex = i - chessboardStartArg;
+                knightPosition.colIndex = j;
             }
             if (chessBoard[index] == 'S') {
-                bishopPosition.
-                        rowIndex = i - chessboardStartArg;
-                bishopPosition.
-                        colIndex = j;
+                bishopPosition.rowIndex = i - chessboardStartArg;
+                bishopPosition.colIndex = j;
             }
             if (chessBoard[index] == 'P')
                 boardFigures++;
@@ -497,18 +493,21 @@ int main(int argc, char *argv[]) {
 
     printf("Board figures are: %d\n", boardFigures);
     printChessboard(chessBoard, chessboardSize, chessboardSize * chessboardSize);
+
     bestDepth = maxDepth;
+    bestMoves = (int *) malloc(sizeof(int) * maxDepth);
+
     int takeFiguresCount = 0;
-    int initialDepth = 0;
+    int depth = 0;
     char startMove = 'S';
 
     clock_t start = clock();
-#pragma omp parallel firstprivate(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures, takeFiguresCount, initialDepth, startMove) shared(bestDepth) num_threads(4)
+#pragma omp parallel firstprivate(chessBoard, chessboardSize, moves, knightPosition, bishopPosition, boardFigures, takeFiguresCount, depth, startMove) shared(bestDepth, bestMoves)
     {
 #pragma omp single
         {
-            dfsChessboard(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures,
-                          takeFiguresCount, initialDepth, startMove);
+            dfsChessboard(chessBoard, chessboardSize, moves, knightPosition, bishopPosition, boardFigures,
+                          takeFiguresCount, depth, startMove);
         }
     }
 

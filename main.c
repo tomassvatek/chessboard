@@ -37,9 +37,9 @@ void printSuccessors(int *successors, int size, char figureMove) {
     printf("\n");
 }
 
-void printChessboard(char *chessboard, int chessboardSize, int oneDimensionLength) {
+void printChessboard(char *chessboard, int chessboardSize) {
     printf("\n");
-    for (int i = 0; i < oneDimensionLength; i++) {
+    for (int i = 0; i < chessboardSize * chessboardSize; i++) {
         printf("%c", chessboard[i]);
         if ((i + 1) % chessboardSize == 0)
             printf("\n");
@@ -189,93 +189,55 @@ void printMovesDebug(int *moves, int movesCount, int chessboardSize, POSITION kn
 }
 
 void printFigureCapturedMove(int moveOrder, char figure, POSITION startPosition, POSITION endPosition) {
-    printf("%d. %c: [%d, %d] -> [%d, %d]*\n", moveOrder + 1, figure, startPosition.colIndex, startPosition.rowIndex,
+    printf("%d. %c: [%d, %d] -> [%d, %d]*\n", moveOrder + 1, figure, startPosition.rowIndex, startPosition.colIndex,
            endPosition.rowIndex, endPosition.colIndex);
 }
 
 void printFigureMove(int moveOrder, char figure, POSITION startPosition, POSITION endPosition) {
-    printf("%d. %c: [%d, %d] -> [%d, %d]\n", moveOrder + 1, figure, startPosition.colIndex, startPosition.rowIndex,
+    printf("%d. %c: [%d, %d] -> [%d, %d]\n", moveOrder + 1, figure, startPosition.rowIndex, startPosition.colIndex,
            endPosition.rowIndex, endPosition.colIndex);
 }
 
-//void printMoves(int *moves, int movesCount, int chessboardSize, int knightIndex, int bishopIndex) {
-//    char figure;
-//    POSITION knightPos = mapIndexInverse(knightIndex, chessboardSize);
-//    POSITION bishopPos = mapIndexInverse(bishopIndex, chessboardSize);
-//
-//    for (int i = 0; i < movesCount; i++) {
-//        figure = i % 2 == 0 ? 'S' : 'J';
-//        POSITION startPosition;
-//        if (moves[i] > 0) {
-//            startPosition = mapIndexInverse(moves[i], chessboardSize);
-//        } else {
-//            startPosition = mapIndexInverse(moves[i] * -1, chessboardSize);
-//        }
-//
-//        if (i == 0 && moves[i] > 0) {
-//            printFigureCapturedMove(i, figure, bishopPos, startPosition);
-//        } else if (i == 0 && moves[i] <= 0) {
-//            printFigureMove(i, figure, bishopPos, startPosition);
-//        }
-//
-//        if (i == 1 && moves[i] > 0) {
-//            printFigureCapturedMove(i, figure, knightPos, startPosition);
-//        } else if (i == 1 && moves[i] <= 0) {
-//            printFigureMove(i, figure, knightPos, startPosition);
-//        }
-//
-//        if (i > 1) {
-//            POSITION endPosition;
-//            if (moves[i - 2] > 0) {
-//                endPosition = mapIndexInverse(moves[i - 2], chessboardSize);
-//            } else {
-//                endPosition = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
-//            }
-//
-//            if (moves[i] > 0) {
-//                printFigureCapturedMove(i, figure, startPosition, endPosition);
-//            } else if (moves[i] <= 0) {
-//                printFigureMove(i, figure, startPosition, endPosition);
-//            }
-//        }
-//    }
-//}
-
-void printMoves(int *moves, int movesCount, int chessboardSize, POSITION knightPos, POSITION bishopPos) {
+void printMoves(int *moves, int movesCount, int chessboardSize, int knightIndex, int bishopIndex) {
     char figure;
+    POSITION knightPos = mapIndexInverse(knightIndex, chessboardSize);
+    POSITION bishopPos = mapIndexInverse(bishopIndex, chessboardSize);
+
     for (int i = 0; i < movesCount; i++) {
         figure = i % 2 == 0 ? 'S' : 'J';
-        POSITION startPosition;
+        POSITION nextMovePos;
         if (moves[i] > 0) {
-            startPosition = mapIndexInverse(moves[i], chessboardSize);
+            nextMovePos = mapIndexInverse(moves[i], chessboardSize);
         } else {
-            startPosition = mapIndexInverse(moves[i] * -1, chessboardSize);
+            nextMovePos = mapIndexInverse(moves[i] * -1, chessboardSize);
         }
 
         if (i == 0 && moves[i] > 0) {
-            printFigureCapturedMove(i, figure, bishopPos, startPosition);
+            printFigureCapturedMove(i, figure, bishopPos, nextMovePos);
         } else if (i == 0 && moves[i] <= 0) {
-            printFigureMove(i, figure, bishopPos, startPosition);
+            printFigureMove(i, figure, bishopPos, nextMovePos);
         }
 
         if (i == 1 && moves[i] > 0) {
-            printFigureCapturedMove(i, figure, knightPos, startPosition);
+            printFigureCapturedMove(i, figure, knightPos, nextMovePos);
         } else if (i == 1 && moves[i] <= 0) {
-            printFigureMove(i, figure, knightPos, startPosition);
+            printFigureMove(i, figure, knightPos, nextMovePos);
         }
 
         if (i > 1) {
-            POSITION endPosition;
+            POSITION startPosition;
             if (moves[i - 2] > 0) {
-                endPosition = mapIndexInverse(moves[i - 2], chessboardSize);
+                //nextMovePos = mapIndexInverse(moves[i - 2], chessboardSize);
+                startPosition = mapIndexInverse(moves[i - 2], chessboardSize);
             } else {
-                endPosition = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
+                //nextMovePos = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
+                startPosition = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
             }
 
             if (moves[i] > 0) {
-                printFigureCapturedMove(i, figure, startPosition, endPosition);
+                printFigureCapturedMove(i, figure, startPosition, nextMovePos);
             } else if (moves[i] <= 0) {
-                printFigureMove(i, figure, startPosition, endPosition);
+                printFigureMove(i, figure, startPosition, nextMovePos);
             }
         }
     }
@@ -377,9 +339,8 @@ int next(char *chessboard, int chessboardSize, int *successors, int startIndex) 
 
 
 void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int knightStartIndex,
-                   int bishopStartIndex, int boardFigures, int takeFiguresCount, int maxDepth, int depth, char figureMove) {
-    recursionCall++;
-
+                   int bishopStartIndex, int boardFigures, int takeFiguresCount, int maxDepth, int depth,
+                   char figureMove) {
     // lower bound
     if (depth == boardFigures && boardFigures == takeFiguresCount) {
 #pragma omp critical
@@ -445,7 +406,7 @@ void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int knightS
             moves[depth] = successors[i];
         }
 
-        // update position after move
+        // update index position after move
         int nextBishopIndex = bishopStartIndex;
         int nextKnightIndex = knightStartIndex;
         if (figureMove == 'S') {
@@ -454,31 +415,30 @@ void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int knightS
             nextKnightIndex = successors[i];
         }
 
-
         if (taskThreshold > depth) {
-            //int *copyMoves = copyIntArray(moves, )
-//            int *copyMoves = (int *)malloc(sizeof(int) * 20);
-//            copyIntArray(moves, copyMoves, bestDepth);
+            int *copyMoves = (int *) malloc(sizeof(int) * maxDepth);
+            copyIntArray(moves, copyMoves, bestDepth);
 #pragma omp task
             {
-                //int *copyMoves = copyIntArray(moves, )
-                //int *copyMoves = (int *)malloc(sizeof(int) * maxDepth);
-                //copyIntArray(moves, copyMoves, bestDepth);
-                dfsChessboard(chessboardCopy, chessboardSize, moves, nextKnightIndex, nextBishopIndex, boardFigures,
+                dfsChessboard(chessboardCopy, chessboardSize, copyMoves, nextKnightIndex, nextBishopIndex, boardFigures,
                               takeFiguresCount + capturedFigure, maxDepth, depth + 1, nextMove);
                 free(chessboardCopy);
-                //free(copyMoves);
-                //free(copyMoves);
+                free(copyMoves);
             }
-//#pragma omp taskwait
         } else {
             dfsChessboard(chessboardCopy, chessboardSize, moves, nextKnightIndex, nextBishopIndex, boardFigures,
                           takeFiguresCount + capturedFigure, maxDepth, depth + 1, nextMove);
             free(chessboardCopy);
         }
-        //free(chessboardCopy);
     }
     free(successors);
+}
+
+void makeTestMoves(char *chessboard, int *moves, int movesSize) {
+    for (int i = 0; i < movesSize; i++) {
+        int index = moves[i] < 0 ? moves[i] * -1 : moves[i];
+        chessboard[index] = '-';
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -523,30 +483,24 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Board figures are: %d\n", boardFigures);
-    //printChessboard(chessboard, chessboardSize, chessboardSize * chessboardSize);
 
     bestDepth = maxDepth;
     bestMoves = (int *) malloc(sizeof(int) * maxDepth);
-    taskThreshold = 3;
-
-    int takeFiguresCount = 0;
-    int depth = 0;
-    char startMove = 'S';
+    taskThreshold = 0.3 * maxDepth;
 
     clock_t start = clock();
-#pragma omp parallel firstprivate(chessboard, chessboardSize, moves, knightStartIndex, bishopStartIndex, boardFigures, takeFiguresCount, depth, maxDepth, startMove)
+#pragma omp parallel firstprivate(chessboardSize, knightStartIndex, bishopStartIndex, boardFigures, maxDepth, taskThreshold) shared(bestDepth)
     {
 #pragma omp single
         {
             dfsChessboard(chessboard, chessboardSize, moves, knightStartIndex, bishopStartIndex, boardFigures,
-                          takeFiguresCount, maxDepth, depth, startMove);
+                          0, maxDepth, 0, 'S');
         }
     }
 
-    POSITION knightPos = mapIndexInverse(knightStartIndex, chessboardSize);
-    POSITION bishopPos = mapIndexInverse(bishopStartIndex, chessboardSize);
-
-    printMoves(bestMoves, bestDepth, chessboardSize, knightPos, bishopPos);
+    printMoves(bestMoves, bestDepth, chessboardSize, knightStartIndex, bishopStartIndex);
+//    makeTestMoves(chessboard, bestMoves, bestDepth);
+//    printChessboard(chessboard, chessboardSize);
 
     free(chessboard);
     free(moves);

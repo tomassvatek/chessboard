@@ -2,10 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <time.h>
 #include <omp.h>
 
-unsigned long recursionCall = 0;
 int bestDepth;
 int taskThreshold;
 int *bestMoves;
@@ -25,26 +23,6 @@ void copyArray(const char *source, char *target, int size) {
     for (int i = 0; i < size; i++) {
         target[i] = source[i];
     }
-}
-
-void printSuccessors(int *successors, int size, char figureMove) {
-    printf("%d indexes for '%c'\n", size, figureMove);
-    printf("[");
-    for (int i = 0; i < size; i++) {
-        printf("%d,", successors[i]);
-    }
-    printf("]");
-    printf("\n");
-}
-
-void printChessboard(char *chessboard, int chessboardSize) {
-    printf("\n");
-    for (int i = 0; i < chessboardSize * chessboardSize; i++) {
-        printf("%c", chessboard[i]);
-        if ((i + 1) % chessboardSize == 0)
-            printf("\n");
-    }
-    printf("\n");
 }
 
 void swap(int *xp, int *yp) {
@@ -146,46 +124,6 @@ int move(char *chessboard, int chessboardSize, int startMoveIndex, int endMoveIn
     chessboard[endMoveIndex] = figureStart;
 
     return taken;
-}
-
-void printMovesDebug(int *moves, int movesCount, int chessboardSize, POSITION knightPos, POSITION bishopPos) {
-    char startFigure;
-    for (int i = 0; i < movesCount; i++) {
-        startFigure = i % 2 == 0 ? 'S' : 'J';
-        if (i == 0 && moves[i] > 0) {
-            int bishopIndex = mapIndex(bishopPos.rowIndex, bishopPos.colIndex, chessboardSize);
-            printf("%d. %c: %d -> %d*\n", i, startFigure, bishopIndex, moves[i]);
-        } else if (i == 0 && moves[i] <= 0) {
-            int bishopIndex = mapIndex(bishopPos.rowIndex, bishopPos.colIndex, chessboardSize);
-            printf("%d. %c: %d -> %d\n", i, startFigure, bishopIndex, moves[i] * -1);
-        }
-
-        if (i == 1 && moves[i] > 0) {
-            int knightIndex = mapIndex(knightPos.rowIndex, knightPos.colIndex, chessboardSize);
-            printf("%d. %c: %d -> %d*\n", i, startFigure, knightIndex, moves[i]);
-        } else if (i == 1 && moves[i] <= 0) {
-            int knightIndex = mapIndex(knightPos.rowIndex, knightPos.colIndex, chessboardSize);
-            printf("%d. %c: %d -> %d\n", i, startFigure, knightIndex, moves[i] * -1);
-        }
-
-        if (i > 1 && moves[i] > 0) {
-            int indexBefore;
-            if (moves[i - 2] >= 0) {
-                indexBefore = moves[i - 2];
-            } else {
-                indexBefore = moves[i - 2] * -1;
-            }
-            printf("%d. %c: %d -> %d*\n", i, startFigure, indexBefore, moves[i]);
-        } else if (i > 1 && moves[i] <= 0) {
-            int indexBefore;
-            if (moves[i - 2] >= 0) {
-                indexBefore = moves[i - 2];
-            } else {
-                indexBefore = moves[i - 2] * -1;
-            }
-            printf("%d. %c: %d -> %d\n", i, startFigure, indexBefore, moves[i] * -1);
-        }
-    }
 }
 
 void printFigureCapturedMove(int moveOrder, char figure, POSITION startPosition, POSITION endPosition) {
@@ -434,13 +372,6 @@ void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int knightS
     free(successors);
 }
 
-void makeTestMoves(char *chessboard, int *moves, int movesSize) {
-    for (int i = 0; i < movesSize; i++) {
-        int index = moves[i] < 0 ? moves[i] * -1 : moves[i];
-        chessboard[index] = '-';
-    }
-}
-
 int main(int argc, char *argv[]) {
     setbuf(stdout, 0);
 
@@ -454,10 +385,8 @@ int main(int argc, char *argv[]) {
     int chessboardSize = atoi(p_chessboardSize);
     int maxDepth = atoi(p_maxDepth);
 
-    printf("Chessboard size is: %d\n", chessboardSize);
-    printf("Max depth is: %d\n", maxDepth);
-
     int oneDimensionSize = chessboardSize * chessboardSize;
+
     char *chessboard = (char *) malloc(sizeof(char) * oneDimensionSize);
     int *moves = (int *) malloc(sizeof(int) * maxDepth);
 
@@ -482,13 +411,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("Board figures are: %d\n", boardFigures);
-
     bestDepth = maxDepth;
     bestMoves = (int *) malloc(sizeof(int) * maxDepth);
     taskThreshold = 0.3 * maxDepth;
 
-    clock_t start = clock();
 #pragma omp parallel firstprivate(chessboardSize, knightStartIndex, bishopStartIndex, boardFigures, maxDepth, taskThreshold) shared(bestDepth)
     {
 #pragma omp single
@@ -499,19 +425,10 @@ int main(int argc, char *argv[]) {
     }
 
     printMoves(bestMoves, bestDepth, chessboardSize, knightStartIndex, bishopStartIndex);
-//    makeTestMoves(chessboard, bestMoves, bestDepth);
-//    printChessboard(chessboard, chessboardSize);
 
     free(chessboard);
     free(moves);
     free(bestMoves);
-
-    clock_t end = clock();
-
-    float seconds = (float) (end - start) / CLOCKS_PER_SEC;
-    printf("Best score is %d. The program finished after %.6f seconds and recursion calls %d.\n", bestDepth, seconds,
-           recursionCall);
-
 
     return 0;
 }

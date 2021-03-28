@@ -356,13 +356,6 @@ void dfsChessboard(char *chessboard, int chessboardSize, int *moves, int knightS
         if (taskThreshold > depth) {
             int *copyMoves = (int *) malloc(sizeof(int) * maxDepth);
             copyIntArray(moves, copyMoves, bestDepth);
-#pragma omp task
-            {
-                dfsChessboard(chessboardCopy, chessboardSize, copyMoves, nextKnightIndex, nextBishopIndex, boardFigures,
-                              takeFiguresCount + capturedFigure, maxDepth, depth + 1, nextMove);
-                free(chessboardCopy);
-                free(copyMoves);
-            }
         } else {
             dfsChessboard(chessboardCopy, chessboardSize, moves, nextKnightIndex, nextBishopIndex, boardFigures,
                           takeFiguresCount + capturedFigure, maxDepth, depth + 1, nextMove);
@@ -415,14 +408,8 @@ int main(int argc, char *argv[]) {
     bestMoves = (int *) malloc(sizeof(int) * maxDepth);
     taskThreshold = 0.3 * maxDepth;
 
-#pragma omp parallel firstprivate(chessboardSize, knightStartIndex, bishopStartIndex, boardFigures, maxDepth, taskThreshold) shared(bestDepth)
-    {
-#pragma omp single
-        {
-            dfsChessboard(chessboard, chessboardSize, moves, knightStartIndex, bishopStartIndex, boardFigures,
-                          0, maxDepth, 0, 'S');
-        }
-    }
+    dfsChessboard(chessboard, chessboardSize, moves, knightStartIndex, bishopStartIndex, boardFigures,
+                  0, maxDepth, 0, 'S');
 
     printMoves(bestMoves, bestDepth, chessboardSize, knightStartIndex, bishopStartIndex);
 

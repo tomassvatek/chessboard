@@ -424,72 +424,72 @@ int getStartIndex(ChessSearchState previousState) {
     }
 }
 
-void dfsChessboard(ChessSearchState chessSearch) {
+void dfsChessboard(ChessSearchState state) {
     // lower bound
-    if (chessSearch.depth == chessSearch.boardFigures && chessSearch.boardFigures == chessSearch.takeFiguresCount) {
+    if (state.depth == state.boardFigures && state.boardFigures == state.takeFiguresCount) {
 #pragma omp critical
         {
-            if (chessSearch.depth == chessSearch.boardFigures &&
-                chessSearch.boardFigures == chessSearch.takeFiguresCount) {
-                bestDepth = chessSearch.depth;
-                copyIntArray(chessSearch.moves, bestMoves, chessSearch.maxDepth);
+            if (state.depth == state.boardFigures &&
+                state.boardFigures == state.takeFiguresCount) {
+                bestDepth = state.depth;
+                copyIntArray(state.moves, bestMoves, state.maxDepth);
             }
         }
         return;
     }
 
     // upper bound (init best depth is max depth)
-    if (chessSearch.depth >= bestDepth) {
+    if (state.depth >= bestDepth) {
         return;
     }
 
     // update best depth
-    if (chessSearch.boardFigures == chessSearch.takeFiguresCount && chessSearch.depth < bestDepth) {
+    if (state.boardFigures == state.takeFiguresCount && state.depth < bestDepth) {
 #pragma omp critical
         {
-            if (chessSearch.boardFigures == chessSearch.takeFiguresCount && chessSearch.depth < bestDepth) {
-                bestDepth = chessSearch.depth;
-                copyIntArray(chessSearch.moves, bestMoves, chessSearch.maxDepth);
+            if (state.boardFigures == state.takeFiguresCount && state.depth < bestDepth) {
+                bestDepth = state.depth;
+                copyIntArray(state.moves, bestMoves, state.maxDepth);
             }
         }
         return;
     }
 
     // Branch and bound
-    if (chessSearch.depth + (chessSearch.boardFigures - chessSearch.takeFiguresCount) >= bestDepth) {
+    if (state.depth + (state.boardFigures - state.takeFiguresCount) >= bestDepth) {
         return;
     }
 
-    int startMoveIndex = getStartIndex(chessSearch);
+    int startMoveIndex = getStartIndex(state);
     int *successors;
-    if (chessSearch.figureMove == 'S') {
-        successors = (int *) malloc(sizeof(int) * (2 * chessSearch.boardSize - 2));
+    if (state.figureMove == 'S') {
+        successors = (int *) malloc(sizeof(int) * (2 * state.boardSize - 2));
     } else {
         successors = (int *) malloc(sizeof(int) * 8);
     }
 
     // get all possible moves
-    int successorSize = next(chessSearch.board, chessSearch.boardSize, successors, startMoveIndex);
+    int successorSize = next(state.board, state.boardSize, successors, startMoveIndex);
     // Is figureMove correct param?
-    val(chessSearch.board, chessSearch.boardSize, successors, successorSize, chessSearch.figureMove);
+    val(state.board, state.boardSize, successors, successorSize, state.figureMove);
 
     for (int i = 0; i < successorSize; i++) {
         // copy board
-        char *chessboardCopy = (char *) malloc(sizeof(char) * chessSearch.boardSize * chessSearch.boardSize);
+        char *chessboardCopy = (char *) malloc(sizeof(char) * state.boardSize * state.boardSize);
         if (chessboardCopy == NULL) {
             printf("Memory leak.\n");
             exit(-1);
         }
 
-        copyArray(chessSearch.board, chessboardCopy, chessSearch.boardSize * chessSearch.boardSize);
-        int startPosition = chessSearch.figureMove == 'S' ? chessSearch.bishopIndex : chessSearch.knightIndex;
+        copyArray(state.board, chessboardCopy, state.boardSize * state.boardSize);
+        int startPosition = state.figureMove == 'S' ? state.bishopIndex : state.knightIndex;
 
         int capturedFigure = move(chessboardCopy, startPosition, successors[i]);
-        recordMove(chessSearch.moves, successors[i], chessSearch.depth, capturedFigure);
+        recordMove(state.moves, successors[i], state.depth, capturedFigure);
 
-        ChessSearchState nextState = createStateFromPredecessor(chessSearch, successors[i], capturedFigure);
+        ChessSearchState nextState = createStateFromPredecessor(state, successors[i], capturedFigure);
         nextState.board = chessboardCopy;
-        nextState.moves = chessSearch.moves;
+        nextState.moves = state.moves;
 
         dfsChessboard(nextState);
         free(chessboardCopy);

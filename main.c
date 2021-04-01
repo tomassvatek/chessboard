@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <stdbool.h>
 
 unsigned long recursionCall = 0;
@@ -381,13 +382,18 @@ int main(int argc, char *argv[]) {
 
     bestDepth = maxDepth;
 
+    clock_t start = clock();
     dfsChessboard(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures,
                   0, 0, 'S');
     printMoves(bestMoves, bestDepth, chessboardSize, knightPosition, bishopPosition);
+    clock_t end = clock();
 
     free(chessBoard);
     free(moves);
     free(bestMoves);
+
+    float seconds = (float) (end - start) / CLOCKS_PER_SEC;
+    printf("Best score is %d. The program finished after %.6f seconds.\n", bestDepth, seconds);
 
     return 0;
 }

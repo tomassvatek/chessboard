@@ -553,6 +553,7 @@ void bfsChessboard(struct Queue *queue, ChessSearchState initialState) {
 int main(int argc, char *argv[]) {
     setbuf(stdout, 0);
 
+#pragma region ParsingInstance
     int chessboardStartArg = 3;
     char *p_chessboardSize;
     p_chessboardSize = *(argv + 1);
@@ -588,6 +589,7 @@ int main(int argc, char *argv[]) {
                 boardFigures++;
         }
     }
+#pragma endregion ParsingInstance
 
     ChessSearchState initialState;
     initialState.board = chessboard;

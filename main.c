@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <mpi.h>
 
 #define CHESSBOARD_SIZE_MAX 13 * 13
 #define MOVES_SIZE_MAX 22
+#define STATE_SIZE_MAX 24
 
 int bestDepth;
 int *bestMoves;
@@ -26,6 +28,11 @@ typedef struct {
     int takeFiguresCount;
 
 } ChessSearchState;
+
+typedef struct {
+    int depth;
+    int moves[MOVES_SIZE_MAX];
+} ChessSearchResult;
 
 #pragma region Queue
 struct Queue {
@@ -387,8 +394,6 @@ int next(char *chessboard, int chessboardSize, int *successors, int startIndex) 
 
 void createStateFromPredecessor(ChessSearchState *state, ChessSearchState *nextState, int nextMoveIndex,
                                 int capturedFigure) {
-    //ChessSearchState nextState;
-
     char nextMove;
     int nextBishopIndex = state->bishopIndex;
     int nextKnightIndex = state->knightIndex;
@@ -408,8 +413,6 @@ void createStateFromPredecessor(ChessSearchState *state, ChessSearchState *nextS
     nextState->maxDepth = state->maxDepth;
     nextState->boardFigures = state->boardFigures;
     nextState->takeFiguresCount = state->takeFiguresCount + capturedFigure;
-
-    //return nextState;
 }
 
 void recordMove(int *moves, int move, int depth, int capturedFigure) {
@@ -478,13 +481,6 @@ void dfsChessboard(ChessSearchState state) {
     val(state.board, state.boardSize, successors, successorSize, state.figureMove);
 
     for (int i = 0; i < successorSize; i++) {
-        // copy board
-        //char *chessboardCopy = (char *) malloc(sizeof(char) * state.boardSize * state.boardSize);
-//        if (chessboardCopy == NULL) {
-//            printf("Memory leak.\n");
-//            exit(-1);
-//        }
-
         ChessSearchState newState;
         copyArray(state.board, newState.board, state.boardSize * state.boardSize);
         copyIntArray(state.moves, newState.moves, state.maxDepth);
@@ -493,13 +489,9 @@ void dfsChessboard(ChessSearchState state) {
         int capturedFigure = move(newState.board, startPosition, successors[i]);
         recordMove(newState.moves, successors[i], state.depth, capturedFigure);
 
-        //ChessSearchState nextState;
         createStateFromPredecessor(&state, &newState, successors[i], capturedFigure);
-        //nextState.board = chessboardCopy;
-        //nextState.moves = state.moves;
 
         dfsChessboard(newState);
-        //free(chessboardCopy);
     }
 
     free(successors);
@@ -529,11 +521,11 @@ int getNextStates(ChessSearchState previousState, ChessSearchState *nextStates) 
     return successorsSize;
 }
 
-void bfsChessboard(struct Queue *queue, ChessSearchState initialState) {
-    enqueue(queue, initialState);
+void bfsChessboard(struct Queue *queue, ChessSearchState *state) {
+    enqueue(queue, *state);
 
     while (!isFull(queue)) {
-        ChessSearchState nextStates[24];
+        ChessSearchState nextStates[STATE_SIZE_MAX];
         int nextStateSize = getNextStates(dequeue(queue), nextStates);
 
         for (int i = 0; i < nextStateSize; i++) {
@@ -550,10 +542,7 @@ void bfsChessboard(struct Queue *queue, ChessSearchState initialState) {
     }
 }
 
-int main(int argc, char *argv[]) {
-    setbuf(stdout, 0);
-
-#pragma region ParsingInstance
+void parseInstance(ChessSearchState *state, int argc, char *argv[]) {
     int chessboardStartArg = 3;
     char *p_chessboardSize;
     p_chessboardSize = *(argv + 1);
@@ -561,60 +550,195 @@ int main(int argc, char *argv[]) {
     char *p_maxDepth;
     p_maxDepth = *(argv + 2);
 
-    ChessSearchState initialState;
-
-    initialState.depth = 0;
-    initialState.figureMove = 'S';
-    initialState.boardFigures = 0;
-    initialState.takeFiguresCount = 0;
-    initialState.boardSize = atoi(p_chessboardSize);
-    initialState.maxDepth = atoi(p_maxDepth);
+    state->depth = 0;
+    state->figureMove = 'S';
+    state->boardFigures = 0;
+    state->takeFiguresCount = 0;
+    state->boardSize = atoi(p_chessboardSize);
+    state->maxDepth = atoi(p_maxDepth);
 
 // Parse instance from CMD
     for (int i = chessboardStartArg; i < argc; i++) {
         int size = strlen(argv[i]);
         for (int j = 0; j < size; j++) {
-            int index = mapIndex(i - chessboardStartArg, j, initialState.boardSize);
-            initialState.board[index] = argv[i][j];
-            if (initialState.board[index] == 'J') {
-                initialState.knightIndex = mapIndex(i - chessboardStartArg, j, initialState.boardSize);
+            int index = mapIndex(i - chessboardStartArg, j, state->boardSize);
+            state->board[index] = argv[i][j];
+            if (state->board[index] == 'J') {
+                state->knightIndex = mapIndex(i - chessboardStartArg, j, state->boardSize);
             }
-            if (initialState.board[index] == 'S') {
-                initialState.bishopIndex = mapIndex(i - chessboardStartArg, j, initialState.boardSize);
+            if (state->board[index] == 'S') {
+                state->bishopIndex = mapIndex(i - chessboardStartArg, j, state->boardSize);
             }
-            if (initialState.board[index] == 'P')
-                initialState.boardFigures++;
+            if (state->board[index] == 'P')
+                state->boardFigures++;
         }
     }
-#pragma endregion ParsingInstance
+}
 
-    bestDepth = initialState.maxDepth;
-    bestMoves = (int *) malloc(sizeof(int) * initialState.maxDepth);
+int main(int argc, char *argv[]) {
+    setbuf(stdout, 0);
+
+//    bestDepth = initialState.maxDepth;
+//    bestMoves = (int *) malloc(sizeof(int) * initialState.maxDepth);
+//
+//    clock_t start = clock();
+//
+//    int statesCount = 4 * 100;
+//    struct Queue *queue = createQueue(statesCount);
+//    bfsChessboard(queue, initialState);
+    int dest = 0;
+    int source = 1;
+    int tagWork = 0;
+    int tagFinished = 1;
+    ChessSearchState message;
+    struct Queue *queue; //= createQueue(statesCount);
+    MPI_Status status;
 
     clock_t start = clock();
 
-    int statesCount = 4 * 100;
-    struct Queue *queue = createQueue(statesCount);
-    bfsChessboard(queue, initialState);
+    MPI_Init(&argc, &argv);
+
+    int processRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &processRank);
+
+    int processCount;
+    MPI_Comm_size(MPI_COMM_WORLD, &processCount);
+
+    if (processRank == 0) {
+        parseInstance(&message, argc, argv);
+
+        ChessSearchResult result;
+        result.depth = message.maxDepth;
+        ChessSearchResult resultBuffer;
+
+        int statesCount = processCount * 10;
+        queue = createQueue(statesCount);
+        bfsChessboard(queue, &message);
+
+        clock_t start = clock();
+
+        int workingSlaves = processCount - 1;
+        int startWorkingSlaves = processCount - 1;
+
+//        printf("There is %d states in the queue\n", queue->size);
+        for (int i = 1; i < workingSlaves; i++) {
+            ChessSearchState dequeuedState = dequeue(queue);
+            MPI_Send(&dequeuedState, sizeof(ChessSearchState), MPI_PACKED, i, tagWork, MPI_COMM_WORLD);
+        }
+
+//        printf("There is %d states in the queue\n", queue->size);
+
+        printf("Working slaves %d\n", workingSlaves);
+        while (workingSlaves > 0) {
+            if (!isEmpty(queue)) {
+                ChessSearchState dequeuedState = dequeue(queue);
+                MPI_Send(&dequeuedState, sizeof(ChessSearchState), MPI_PACKED, source, tagWork, MPI_COMM_WORLD);
+            } else {
+                //for(int j = 0; j < workingSlaves; j++) {}
+                MPI_Send(&message, sizeof(ChessSearchState), MPI_PACKED, source, tagFinished, MPI_COMM_WORLD);
+                //workingSlaves--;
+                //printf("Working slaves %d\n", workingSlaves);
+                //printf("Queue is empty and slaves working is %d.\n", workingSlaves);
+            }
+
+            if (workingSlaves != startWorkingSlaves) {
+                printf("Receive result.\n");
+                MPI_Recv(&resultBuffer, sizeof(ChessSearchResult), MPI_PACKED, MPI_ANY_SOURCE, MPI_ANY_TAG,
+                         MPI_COMM_WORLD, &status);
+                workingSlaves--;
+                source = status.MPI_SOURCE;
+
+                //printf("Score is %d\n", resultBuffer.depth);
+                if (result.depth > resultBuffer.depth) {
+                    printf("Updating best score %d\n", resultBuffer.depth);
+                    result.depth = resultBuffer.depth;
+                    copyIntArray(resultBuffer.moves, result.moves, MOVES_SIZE_MAX);
+                }
+            }
+        }
+
+        printf("There is %d states in the queue\n", queue->size);
+
+        free(queue->array);
+        free(queue);
+
+//        free(slavesQueue->array);
+//        free(slavesQueue);
+
+        clock_t end = clock();
+
+        float seconds = (float) (end - start) / CLOCKS_PER_SEC;
+        printMoves(result.moves, result.depth, message.boardSize, message.knightIndex, message.bishopIndex);
+        printf("Best score is %d. The program finished after %.6f seconds.\n", bestDepth, seconds);
+    } else {
+        // Send result back to the master
+        ChessSearchResult result;
+        result.depth = 100;
+        while (true) {
+            //printf("Process %d receiving job..\n", processRank);
+            MPI_Recv(&message, sizeof(ChessSearchState), MPI_PACKED, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,
+                     &status);
+
+            if (status.MPI_TAG == tagFinished) {
+                MPI_Send(&result, sizeof(ChessSearchResult), MPI_PACKED, 0, tagFinished, MPI_COMM_WORLD);
+                printf("Process %d finished.\n", processRank);
+                break;
+            } else if (status.MPI_TAG == tagWork) {
+                bestDepth = message.maxDepth;
+                bestMoves = (int *) malloc(sizeof(int) * message.maxDepth);
+
+                clock_t start = clock();
+
+                //TODO: Get num of thread from openmp
+                int statesCount = 4 * 100;
+                queue = createQueue(statesCount);
+                bfsChessboard(queue, &message);
 
 #pragma omp parallel for schedule(dynamic)
-    for (int i = 0; i < statesCount - 1; i++) {
-        dfsChessboard(queue->array[i]);
+                for (int i = 0; i < statesCount - 1; i++) {
+                    dfsChessboard(queue->array[i]);
+                }
+
+                if(bestDepth < result.depth) {
+                    printf("Updating score of process %d to value %d.\n", processRank, result.depth);
+                    result.depth = bestDepth;
+                    copyIntArray(bestMoves, result.moves, MOVES_SIZE_MAX);
+                }
+
+//                ChessSearchResult chessSearchResult;
+//                chessSearchResult.depth = bestDepth;
+//                copyIntArray(bestMoves, chessSearchResult.moves, MOVES_SIZE_MAX);
+
+                //MPI_Send(&chessSearchResult, sizeof(chessSearchResult), MPI_PACKED, 0, tagFinished, MPI_COMM_WORLD);
+
+                free(queue->array);
+                free(queue);
+
+                free(bestMoves);
+            }
+        }
     }
 
-    free(queue->array);
-    free(queue);
+    printf("Program finished\n");
 
-    printMoves(bestMoves, bestDepth, initialState.boardSize, initialState.knightIndex, initialState.bishopIndex);
+    MPI_Finalize();
 
-    clock_t end = clock();
-
-    float seconds = (float) (end - start) / CLOCKS_PER_SEC;
-    printf("Best score is %d. The program finished after %.6f seconds.\n", bestDepth, seconds);
-
-    //free(chessboard);
-    //free(moves);
-    free(bestMoves);
+//#pragma omp parallel for schedule(dynamic)
+//    for (int i = 0; i < statesCount - 1; i++) {
+//        dfsChessboard(queue->array[i]);
+//    }
+//
+//    free(queue->array);
+//    free(queue);
+//
+//    printMoves(bestMoves, bestDepth, initialState.boardSize, initialState.knightIndex, initialState.bishopIndex);
+//
+//    clock_t end = clock();
+//
+//    float seconds = (float) (end - start) / CLOCKS_PER_SEC;
+//    printf("Best score is %d. The program finished after %.6f seconds.\n", bestDepth, seconds);
+//
+//    free(bestMoves);
 
     return 0;
 }

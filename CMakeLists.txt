@@ -8,3 +8,7 @@ add_executable(pdp main.c)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(pdp PUBLIC OpenMP::OpenMP_CXX)
 endif()
+
+find_package(MPI REQUIRED)
+message(STATUS "Run: ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ${MPIEXEC_PREFLAGS} EXECUTABLE ${MPIEXEC_POSTFLAGS} ARGS")
+target_link_libraries(pdp PUBLIC MPI::MPI_CXX)

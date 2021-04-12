@@ -4,16 +4,19 @@
 #include <stdbool.h>
 #include <time.h>
 
+#define CHESSBOARD_SIZE_MAX 13 * 13
+#define MOVES_SIZE_MAX 22
+
 int bestDepth;
 int *bestMoves;
 
 typedef struct {
-    char *board;
+    char board[CHESSBOARD_SIZE_MAX];
     int boardSize;
 
     int depth;
     int maxDepth;
-    int *moves;
+    int moves[MOVES_SIZE_MAX];
 
     int knightIndex;
     int bishopIndex;
@@ -382,13 +385,14 @@ int next(char *chessboard, int chessboardSize, int *successors, int startIndex) 
     }
 }
 
-ChessSearchState createStateFromPredecessor(ChessSearchState state, int nextMoveIndex, int capturedFigure) {
-    ChessSearchState nextState;
+void createStateFromPredecessor(ChessSearchState *state, ChessSearchState *nextState, int nextMoveIndex,
+                                int capturedFigure) {
+    //ChessSearchState nextState;
 
     char nextMove;
-    int nextBishopIndex = state.bishopIndex;
-    int nextKnightIndex = state.knightIndex;
-    if (state.figureMove == 'S') {
+    int nextBishopIndex = state->bishopIndex;
+    int nextKnightIndex = state->knightIndex;
+    if (state->figureMove == 'S') {
         nextBishopIndex = nextMoveIndex;
         nextMove = 'J';
     } else {
@@ -396,16 +400,16 @@ ChessSearchState createStateFromPredecessor(ChessSearchState state, int nextMove
         nextMove = 'S';
     }
 
-    nextState.boardSize = state.boardSize;
-    nextState.bishopIndex = nextBishopIndex;
-    nextState.knightIndex = nextKnightIndex;
-    nextState.figureMove = nextMove;
-    nextState.depth = state.depth + 1;
-    nextState.maxDepth = state.maxDepth;
-    nextState.boardFigures = state.boardFigures;
-    nextState.takeFiguresCount = state.takeFiguresCount + capturedFigure;
+    nextState->boardSize = state->boardSize;
+    nextState->bishopIndex = nextBishopIndex;
+    nextState->knightIndex = nextKnightIndex;
+    nextState->figureMove = nextMove;
+    nextState->depth = state->depth + 1;
+    nextState->maxDepth = state->maxDepth;
+    nextState->boardFigures = state->boardFigures;
+    nextState->takeFiguresCount = state->takeFiguresCount + capturedFigure;
 
-    return nextState;
+    //return nextState;
 }
 
 void recordMove(int *moves, int move, int depth, int capturedFigure) {
@@ -475,24 +479,27 @@ void dfsChessboard(ChessSearchState state) {
 
     for (int i = 0; i < successorSize; i++) {
         // copy board
-        char *chessboardCopy = (char *) malloc(sizeof(char) * state.boardSize * state.boardSize);
-        if (chessboardCopy == NULL) {
-            printf("Memory leak.\n");
-            exit(-1);
-        }
+        //char *chessboardCopy = (char *) malloc(sizeof(char) * state.boardSize * state.boardSize);
+//        if (chessboardCopy == NULL) {
+//            printf("Memory leak.\n");
+//            exit(-1);
+//        }
 
-        copyArray(state.board, chessboardCopy, state.boardSize * state.boardSize);
+        ChessSearchState newState;
+        copyArray(state.board, newState.board, state.boardSize * state.boardSize);
+        copyIntArray(state.moves, newState.moves, state.maxDepth);
+
         int startPosition = state.figureMove == 'S' ? state.bishopIndex : state.knightIndex;
+        int capturedFigure = move(newState.board, startPosition, successors[i]);
+        recordMove(newState.moves, successors[i], state.depth, capturedFigure);
 
-        int capturedFigure = move(chessboardCopy, startPosition, successors[i]);
-        recordMove(state.moves, successors[i], state.depth, capturedFigure);
+        //ChessSearchState nextState;
+        createStateFromPredecessor(&state, &newState, successors[i], capturedFigure);
+        //nextState.board = chessboardCopy;
+        //nextState.moves = state.moves;
 
-        ChessSearchState nextState = createStateFromPredecessor(state, successors[i], capturedFigure);
-        nextState.board = chessboardCopy;
-        nextState.moves = state.moves;
-
-        dfsChessboard(nextState);
-        free(chessboardCopy);
+        dfsChessboard(newState);
+        //free(chessboardCopy);
     }
 
     free(successors);
@@ -508,20 +515,13 @@ int getNextStates(ChessSearchState previousState, ChessSearchState *nextStates) 
         previousState.figureMove == 'S' ? 'J' : 'S');
 
     for (int i = 0; i < successorsSize; i++) {
-        char *chessboardCopy = (char *) malloc(sizeof(char) * previousState.boardSize * previousState.boardSize);
-        int *movesCopy = (int *) malloc(sizeof(int) * previousState.maxDepth);
+        copyArray(previousState.board, nextStates[i].board, previousState.boardSize * previousState.boardSize);
+        copyIntArray(previousState.moves, nextStates[i].moves, previousState.maxDepth);
 
-        copyArray(previousState.board, chessboardCopy, previousState.boardSize * previousState.boardSize);
-        copyIntArray(previousState.moves, movesCopy, previousState.maxDepth);
+        int capturedFigure = move(nextStates[i].board, startMoveIndex, successors[i]);
+        recordMove(nextStates[i].moves, successors[i], previousState.depth, capturedFigure);
 
-        int capturedFigure = move(chessboardCopy, startMoveIndex, successors[i]);
-        recordMove(movesCopy, successors[i], previousState.depth, capturedFigure);
-
-        ChessSearchState nextState = createStateFromPredecessor(previousState, successors[i], capturedFigure);
-        nextState.board = chessboardCopy;
-        nextState.moves = movesCopy;
-
-        nextStates[i] = nextState;
+        createStateFromPredecessor(&previousState, &nextStates[i], successors[i], capturedFigure);
     }
 
     free(successors);
@@ -533,7 +533,7 @@ void bfsChessboard(struct Queue *queue, ChessSearchState initialState) {
     enqueue(queue, initialState);
 
     while (!isFull(queue)) {
-        ChessSearchState nextStates[queue->capacity];
+        ChessSearchState nextStates[24];
         int nextStateSize = getNextStates(dequeue(queue), nextStates);
 
         for (int i = 0; i < nextStateSize; i++) {
@@ -561,52 +561,35 @@ int main(int argc, char *argv[]) {
     char *p_maxDepth;
     p_maxDepth = *(argv + 2);
 
-    int chessboardSize = atoi(p_chessboardSize);
-    int maxDepth = atoi(p_maxDepth);
+    ChessSearchState initialState;
 
-    int oneDimensionSize = chessboardSize * chessboardSize;
-
-    char *chessboard = (char *) malloc(sizeof(char) * oneDimensionSize);
-    int *moves = (int *) malloc(sizeof(int) * maxDepth);
-
-    int knightStartIndex;
-    int bishopStartIndex;
-    int boardFigures = 0;
+    initialState.depth = 0;
+    initialState.figureMove = 'S';
+    initialState.boardFigures = 0;
+    initialState.takeFiguresCount = 0;
+    initialState.boardSize = atoi(p_chessboardSize);
+    initialState.maxDepth = atoi(p_maxDepth);
 
 // Parse instance from CMD
     for (int i = chessboardStartArg; i < argc; i++) {
         int size = strlen(argv[i]);
         for (int j = 0; j < size; j++) {
-            int index = mapIndex(i - chessboardStartArg, j, chessboardSize);
-            chessboard[index] = argv[i][j];
-            if (chessboard[index] == 'J') {
-                knightStartIndex = mapIndex(i - chessboardStartArg, j, chessboardSize);
+            int index = mapIndex(i - chessboardStartArg, j, initialState.boardSize);
+            initialState.board[index] = argv[i][j];
+            if (initialState.board[index] == 'J') {
+                initialState.knightIndex = mapIndex(i - chessboardStartArg, j, initialState.boardSize);
             }
-            if (chessboard[index] == 'S') {
-                bishopStartIndex = mapIndex(i - chessboardStartArg, j, chessboardSize);
+            if (initialState.board[index] == 'S') {
+                initialState.bishopIndex = mapIndex(i - chessboardStartArg, j, initialState.boardSize);
             }
-            if (chessboard[index] == 'P')
-                boardFigures++;
+            if (initialState.board[index] == 'P')
+                initialState.boardFigures++;
         }
     }
 #pragma endregion ParsingInstance
 
-    ChessSearchState initialState;
-    initialState.board = chessboard;
-    initialState.boardSize = chessboardSize;
-    initialState.boardFigures = boardFigures;
-
-    initialState.bishopIndex = bishopStartIndex;
-    initialState.knightIndex = knightStartIndex;
-    initialState.maxDepth = maxDepth;
-    initialState.depth = 0;
-
-    initialState.moves = moves;
-    initialState.takeFiguresCount = 0;
-    initialState.figureMove = 'S';
-
-    bestDepth = maxDepth;
-    bestMoves = (int *) malloc(sizeof(int) * maxDepth);
+    bestDepth = initialState.maxDepth;
+    bestMoves = (int *) malloc(sizeof(int) * initialState.maxDepth);
 
     clock_t start = clock();
 
@@ -622,15 +605,15 @@ int main(int argc, char *argv[]) {
     free(queue->array);
     free(queue);
 
-    printMoves(bestMoves, bestDepth, chessboardSize, knightStartIndex, bishopStartIndex);
+    printMoves(bestMoves, bestDepth, initialState.boardSize, initialState.knightIndex, initialState.bishopIndex);
 
     clock_t end = clock();
 
     float seconds = (float) (end - start) / CLOCKS_PER_SEC;
     printf("Best score is %d. The program finished after %.6f seconds.\n", bestDepth, seconds);
 
-    free(chessboard);
-    free(moves);
+    //free(chessboard);
+    //free(moves);
     free(bestMoves);
 
     return 0;

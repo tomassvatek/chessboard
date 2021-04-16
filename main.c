@@ -280,10 +280,8 @@ void printMoves(int *moves, int movesCount, int chessboardSize, int knightIndex,
         if (i > 1) {
             Position startPosition;
             if (moves[i - 2] > 0) {
-                //nextMovePos = mapIndexInverse(moves[i - 2], boardSize);
                 startPosition = mapIndexInverse(moves[i - 2], chessboardSize);
             } else {
-                //nextMovePos = mapIndexInverse(moves[i - 2] * -1, boardSize);
                 startPosition = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
             }
 
@@ -594,11 +592,13 @@ int main(int argc, char *argv[]) {
     int processCount;
     MPI_Comm_size(MPI_COMM_WORLD, &processCount);
 
+    // Master
     if (processRank == 0) {
         parseInstance(&message, argc, argv);
 
-        ChessSearchResult result;
-        result.depth = message.maxDepth;
+        // Initialize bestResult
+        ChessSearchResult bestResult;
+        bestResult.depth = message.maxDepth;
         ChessSearchResult resultBuffer;
 
         int workingSlaves = processCount - 1;
@@ -606,67 +606,52 @@ int main(int argc, char *argv[]) {
         queue = createQueue(statesCount);
         bfsChessboard(queue, &message);
 
-        clock_t start = clock();
-
-        printf("There is %d states in the queue\n", queue->size);
+        // send the job to all slaves
         for (int i = 1; i < processCount; i++) {
             ChessSearchState dequeuedState = dequeue(queue);
             MPI_Send(&dequeuedState, sizeof(ChessSearchState), MPI_PACKED, i, tagWork, MPI_COMM_WORLD);
         }
 
         while (workingSlaves > 0) {
+            // until any slave working, wait for the job result
             MPI_Recv(&resultBuffer, sizeof(ChessSearchResult), MPI_PACKED, MPI_ANY_SOURCE, MPI_ANY_TAG,
                      MPI_COMM_WORLD, &status);
 
-            int freeSlave = status.MPI_SOURCE;
-
-            if (result.depth > resultBuffer.depth) {
-                result.depth = resultBuffer.depth;
-                copyIntArray(resultBuffer.moves, result.moves, MOVES_SIZE_MAX);
+            // refresh the best result
+            if (bestResult.depth > resultBuffer.depth) {
+                bestResult.depth = resultBuffer.depth;
+                copyIntArray(resultBuffer.moves, bestResult.moves, MOVES_SIZE_MAX);
             }
 
+            // if there is more job, then send a job to the free slave
+            int freeSlave = status.MPI_SOURCE;
             if (!isEmpty(queue)) {
                 ChessSearchState dequeuedState = dequeue(queue);
                 MPI_Send(&dequeuedState, sizeof(ChessSearchState), MPI_PACKED, freeSlave, tagWork, MPI_COMM_WORLD);
             } else {
+                // if there is no job, then send the end request to the free slave
                 ChessSearchState endState;
                 MPI_Send(&endState, sizeof(ChessSearchState), MPI_PACKED, freeSlave, tagFinished, MPI_COMM_WORLD);
                 workingSlaves--;
             }
         }
+
         free(queue->array);
         free(queue);
 
-        clock_t end = clock();
-
-        float seconds = (float) (end - start) / CLOCKS_PER_SEC;
-        printMoves(result.moves, result.depth, message.boardSize, message.knightIndex, message.bishopIndex);
-        printf("Best score is %d. The program finished after %.6f seconds.\n", result.depth, seconds);
+        printMoves(bestResult.moves, bestResult.depth, message.boardSize, message.knightIndex, message.bishopIndex);
     } else {
-        // Send result back to the master
-        ChessSearchResult result;
-        result.depth = 150;
-        bestDepth = 150;
         while (true) {
+            // wait for a message from the master
             MPI_Recv(&message, sizeof(ChessSearchState), MPI_PACKED, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,
                      &status);
-            printf("Slave %d: receiving job.. The depth is %d\n", processRank, message.depth);
-
 
             if (status.MPI_TAG == tagFinished) {
-                //MPI_Send(&result, sizeof(ChessSearchResult), MPI_PACKED, 0, tagFinished, MPI_COMM_WORLD);
-                //printf("Slave %d: finished.\n", processRank);
-//                ChessSearchResult chessSearchResult;
-//                chessSearchResult.depth = bestDepth;
-//                copyIntArray(bestMoves, chessSearchResult.moves, MOVES_SIZE_MAX);
-
-                //MPI_Send(&result, sizeof(ChessSearchResult), MPI_PACKED, 0, tagFinished, MPI_COMM_WORLD);
                 break;
             } else if (status.MPI_TAG == tagWork) {
                 bestDepth = message.maxDepth;
                 bestMoves = (int *) malloc(sizeof(int) * MOVES_SIZE_MAX);
 
-                //TODO: Get num of thread from openmp
                 int statesCount = 4 * 100;
                 queue = createQueue(statesCount);
                 bfsChessboard(queue, &message);
@@ -676,18 +661,11 @@ int main(int argc, char *argv[]) {
                     dfsChessboard(queue->array[i]);
                 }
 
-//                if (bestDepth < result.depth) {
-//                    //printf("Updating score of process %d to value %d.\n", processRank, result.depth);
-//                    result.depth = bestDepth;
-//                    copyIntArray(bestMoves, result.moves, MOVES_SIZE_MAX);
-//                }
-
                 ChessSearchResult chessSearchResult;
                 chessSearchResult.depth = bestDepth;
                 copyIntArray(bestMoves, chessSearchResult.moves, MOVES_SIZE_MAX);
 
                 MPI_Send(&chessSearchResult, sizeof(ChessSearchResult), MPI_PACKED, 0, tagFinished, MPI_COMM_WORLD);
-                printf("Slave %d: finished the job. The result is %d\n", processRank, chessSearchResult.depth);
 
                 free(queue->array);
                 free(queue);
@@ -697,26 +675,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("Process %d finished\n", processRank);
-
     MPI_Finalize();
-
-//#pragma omp parallel for schedule(dynamic)
-//    for (int i = 0; i < statesCount - 1; i++) {
-//        dfsChessboard(queue->array[i]);
-//    }
-//
-//    free(queue->array);
-//    free(queue);
-//
-//    printMoves(bestMoves, bestDepth, initialState.boardSize, initialState.knightIndex, initialState.bishopIndex);
-//
-//    clock_t end = clock();
-//
-//    float seconds = (float) (end - start) / CLOCKS_PER_SEC;
-//    printf("Best score is %d. The program finished after %.6f seconds.\n", bestDepth, seconds);
-//
-//    free(bestMoves);
 
     return 0;
 }

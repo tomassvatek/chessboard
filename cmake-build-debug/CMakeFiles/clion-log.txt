@@ -1,4 +1,16 @@
 "C:\Program Files\JetBrains\CLion 2020.3.2\bin\cmake\win\bin\cmake.exe" -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - MinGW Makefiles" C:\Users\tomas.svatek\CLionProjects\pdp
--- Configuring done
--- Generating done
--- Build files have been written to: C:/Users/tomas.svatek/CLionProjects/pdp/cmake-build-debug
+-- Could NOT find MPI_C (missing: MPI_C_LIB_NAMES MPI_C_HEADER_DIR MPI_C_WORKS) 
+CMake Error at C:/Program Files/JetBrains/CLion 2020.3.2/bin/cmake/win/share/cmake-3.17/Modules/FindPackageHandleStandardArgs.cmake:164 (message):
+  Could NOT find MPI (missing: MPI_C_FOUND)
+
+      Reason given by package: MPI component 'CXX' was requested, but language CXX is not enabled.  MPI component 'Fortran' was requested, but language Fortran is not enabled.  
+
+Call Stack (most recent call first):
+  C:/Program Files/JetBrains/CLion 2020.3.2/bin/cmake/win/share/cmake-3.17/Modules/FindPackageHandleStandardArgs.cmake:445 (_FPHSA_FAILURE_MESSAGE)
+  C:/Program Files/JetBrains/CLion 2020.3.2/bin/cmake/win/share/cmake-3.17/Modules/FindMPI.cmake:1717 (find_package_handle_standard_args)
+  CMakeLists.txt:12 (find_package)
+
+
+-- Configuring incomplete, errors occurred!
+See also "C:/Users/tomas.svatek/CLionProjects/pdp/cmake-build-debug/CMakeFiles/CMakeOutput.log".
+See also "C:/Users/tomas.svatek/CLionProjects/pdp/cmake-build-debug/CMakeFiles/CMakeError.log".

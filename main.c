@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <omp.h>
 
 int bestDepth;
 int *bestMoves;
@@ -554,15 +555,17 @@ int main(int argc, char *argv[]) {
     setbuf(stdout, 0);
 
 #pragma region ParsingInstance
-    int chessboardStartArg = 3;
+    char *p_threadCount = *(argv + 1);
+    int chessboardStartArg = 4;
     char *p_chessboardSize;
-    p_chessboardSize = *(argv + 1);
+    p_chessboardSize = *(argv + 2);
 
     char *p_maxDepth;
-    p_maxDepth = *(argv + 2);
+    p_maxDepth = *(argv + 3);
 
     int chessboardSize = atoi(p_chessboardSize);
     int maxDepth = atoi(p_maxDepth);
+    int threadCount = atoi(p_threadCount);
 
     int oneDimensionSize = chessboardSize * chessboardSize;
 
@@ -614,6 +617,7 @@ int main(int argc, char *argv[]) {
     struct Queue *queue = createQueue(statesCount);
     bfsChessboard(queue, initialState);
 
+    omp_set_num_threads(threadCount);
 #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < statesCount - 1; i++) {
         dfsChessboard(queue->array[i]);

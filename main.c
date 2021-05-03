@@ -135,41 +135,46 @@ void printFigureMove(int moveOrder, char figure, POSITION startPosition, POSITIO
            endPosition.rowIndex, endPosition.colIndex);
 }
 
-void printMoves(int *moves, int movesCount, int chessboardSize, POSITION knightPos, POSITION bishopPos) {
+void printMoves(int *moves, int movesCount, int chessboardSize, int knightIndex, int bishopIndex) {
     char figure;
+    POSITION knightPos = mapIndexInverse(knightIndex, chessboardSize);
+    POSITION bishopPos = mapIndexInverse(bishopIndex, chessboardSize);
+
     for (int i = 0; i < movesCount; i++) {
         figure = i % 2 == 0 ? 'S' : 'J';
-        POSITION startPosition;
+        POSITION nextMovePos;
         if (moves[i] > 0) {
-            startPosition = mapIndexInverse(moves[i], chessboardSize);
+            nextMovePos = mapIndexInverse(moves[i], chessboardSize);
         } else {
-            startPosition = mapIndexInverse(moves[i] * -1, chessboardSize);
+            nextMovePos = mapIndexInverse(moves[i] * -1, chessboardSize);
         }
 
         if (i == 0 && moves[i] > 0) {
-            printFigureCapturedMove(i, figure, bishopPos, startPosition);
+            printFigureCapturedMove(i, figure, bishopPos, nextMovePos);
         } else if (i == 0 && moves[i] <= 0) {
-            printFigureMove(i, figure, bishopPos, startPosition);
+            printFigureMove(i, figure, bishopPos, nextMovePos);
         }
 
         if (i == 1 && moves[i] > 0) {
-            printFigureCapturedMove(i, figure, knightPos, startPosition);
+            printFigureCapturedMove(i, figure, knightPos, nextMovePos);
         } else if (i == 1 && moves[i] <= 0) {
-            printFigureMove(i, figure, knightPos, startPosition);
+            printFigureMove(i, figure, knightPos, nextMovePos);
         }
 
         if (i > 1) {
-            POSITION endPosition;
+            POSITION startPosition;
             if (moves[i - 2] > 0) {
-                endPosition = mapIndexInverse(moves[i - 2], chessboardSize);
+                //nextMovePos = mapIndexInverse(moves[i - 2], boardSize);
+                startPosition = mapIndexInverse(moves[i - 2], chessboardSize);
             } else {
-                endPosition = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
+                //nextMovePos = mapIndexInverse(moves[i - 2] * -1, boardSize);
+                startPosition = mapIndexInverse(moves[i - 2] * -1, chessboardSize);
             }
 
             if (moves[i] > 0) {
-                printFigureCapturedMove(i, figure, startPosition, endPosition);
+                printFigureCapturedMove(i, figure, startPosition, nextMovePos);
             } else if (moves[i] <= 0) {
-                printFigureMove(i, figure, startPosition, endPosition);
+                printFigureMove(i, figure, startPosition, nextMovePos);
             }
         }
     }
@@ -385,7 +390,9 @@ int main(int argc, char *argv[]) {
     clock_t start = clock();
     dfsChessboard(chessBoard, chessboardSize, moves, bestMoves, knightPosition, bishopPosition, boardFigures,
                   0, 0, 'S');
-    printMoves(bestMoves, bestDepth, chessboardSize, knightPosition, bishopPosition);
+    printMoves(bestMoves, bestDepth, chessboardSize,
+               mapIndex(knightPosition.rowIndex, knightPosition.colIndex, chessboardSize),
+               mapIndex(bishopPosition.rowIndex, bishopPosition.colIndex, chessboardSize));
     clock_t end = clock();
 
     free(chessBoard);
